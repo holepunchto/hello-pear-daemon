@@ -23,7 +23,10 @@ npm run make:linux-x64               # Linux x64 standalone in out/linux-x64/
 the spawn. **Set `package.json#upgrade` to a valid link from `pear touch` before
 testing the updater.** The detached child parses that link. The foreground can
 still print `CLI ready` and exit successfully if the child fails at startup.
-Read `<storage>/updates.log` for the outcome. Standalones enable updates by default.
+Read `<storage>/updates.log` for the outcome. Standalones bundle `package.json`
+and the source at build time, so rerun `npm run make` after changing either.
+They enable updates by default against the persistent app directory. Pass
+`--no-updates` or a scratch `--storage` when testing them.
 
 ## Contracts
 
@@ -33,14 +36,18 @@ Read `<storage>/updates.log` for the outcome. Standalones enable updates by defa
   opening Corestore or joining the swarm. Keep it through apply and teardown.
 - `--update-window` is the idle wait in milliseconds. A download that starts
   during that window can finish after it expires.
-- Keep the payload basename in sync with the six `bare-build --name` arguments
-  and the build workflow. Windows appends `.exe` to that basename.
+- Keep the payload basename (`productName || name`, lowercase kebab-case) in
+  sync with the six `bare-build --name` arguments and the build workflow. On
+  Windows, `bare-build` and `runUpdater()` each append `.exe`. Never add it to
+  `package.json` or `--name`. The workflow's Windows paths include it.
 
 ## Boundaries
 
 - Keep update work in the detached process so foreground commands can exit promptly.
-- For launcher changes, check both a source run and a standalone. For lifecycle
-  changes, exercise two launches against the same storage directory.
+- For changes to `bin.mjs` or `App.spawnUpdater()`, check both a source run and
+  a rebuilt standalone. For lifecycle changes, exercise two launches against the
+  same storage directory, the second inside the first one's `--update-window`.
+  One `--updater` process should remain. The other exits without logging.
 - Keep local test links out of commits. Staging, seeding and publishing a release
   are separate maintainer operations.
 

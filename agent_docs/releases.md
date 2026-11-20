@@ -16,7 +16,9 @@ npm run make
 ./out/darwin-arm64/hello-pear-daemon --no-updates
 ```
 
-A CLI rename touches three places.
+A CLI rename must keep three places matching. All three spell `productName || name`
+in lowercase kebab-case. `bare-build` kebab-cases `--name` for the file name,
+and `pear-build` rejects an app whose basename differs.
 
 - The runtime identity in `package.json` (`productName || name`). It determines
   the default persistent storage directory and the payload basename.
@@ -24,6 +26,15 @@ A CLI rename touches three places.
 - The upload glob, POSIX `chmod` paths and six `pear-build` inputs in
   [the build workflow](../.github/workflows/build.yaml). The Windows inputs
   include `.exe`.
+
+CI and `npm run make` do not check names, and the build workflow misses some
+mismatches. `pear-build` checks input basenames, not that the files exist, so a
+wrong Windows path packages an empty `app/`. List `by-arch.tar.gz` before
+staging. `bare-build` does not clear `out/`, so delete the old executable before
+checking the new one. When `name` changes, run `npm install --package-lock-only`.
+Rename before the first release. Existing installs look up
+`/by-arch/<platform>-<arch>/app/<old name>` and log `update not found` once a
+release carries only the new name.
 
 ## CI and the deployment directory
 
@@ -35,5 +46,11 @@ The manually dispatched build workflow builds one executable per host. Its
 packaging job downloads the binaries, restores the macOS and Linux executable
 bits and runs `pear-build@1.1.1` with the root `package.json`. It uploads
 `by-arch.tar.gz` as the `by-arch` artifact. The archive contains the deployment
-directory's contents at its root. Follow the [README deployment guide](../README.md#peer-to-peer-deployments)
-for staging and distribution.
+directory's contents at its root.
+
+Each binary embeds `version` and `upgrade` from the dispatched ref's
+`package.json`, and `pear-build` copies that file to the deployment root. A
+maintainer commits the release `upgrade` link and a higher `version` before
+dispatching. Follow the
+[README deployment guide](../README.md#peer-to-peer-deployments) for staging and
+distribution.
